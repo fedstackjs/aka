@@ -5,13 +5,26 @@
   "publishConfig": {
     "access": "public"
   },
+  "description": "Aka is the official ranker for the AOI project",
+  "main": "lib/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/fedstackjs/aka.git"
+  },
+  "author": "Zisu Zhang <thezzisu@gmail.com> (https://zisu.dev)",
+  "bugs": {
+    "url": "https://github.com/fedstackjs/aka/issues"
+  },
+  "homepage": "https://github.com/fedstackjs/aka#readme",
   "license": "AGPL-3.0-only",
   "type": "module",
   "files": [
     "lib",
     "bin"
   ],
-  "bin": "./bin/aka.js",
+  "bin": {
+    "aka": "bin/aka.js"
+  },
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
