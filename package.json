@@ -1,0 +1,33 @@
+{
+  "name": "@aoi-js/aka",
+  "version": "0.0.1",
+  "packageManager": "yarn@4.0.2",
+  "publishConfig": {
+    "access": "public"
+  },
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "files": [
+    "lib",
+    "bin"
+  ],
+  "bin": "./bin/aka.js",
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3",
+    "undici-types": "^6.4.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.3.2",
+    "ky": "^1.2.0",
+    "mongodb": "^6.3.0",
+    "pino": "^8.17.2"
+  },
+  "scripts": {
+    "build": "tsc"
+  }
+}
