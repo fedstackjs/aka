@@ -1,6 +1,6 @@
 {
   "name": "@aoi-js/aka",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "packageManager": "yarn@4.0.2",
   "publishConfig": {
     "access": "public"
@@ -22,9 +22,7 @@
     "lib",
     "bin"
   ],
-  "bin": {
-    "aka": "bin/aka.js"
-  },
+  "bin": "bin/aka.js",
   "devDependencies": {
     "@types/node": "^20.11.5",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
@@ -41,6 +39,7 @@
     "pino": "^8.17.2"
   },
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "prepack": "run build"
   }
 }

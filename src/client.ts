@@ -1,5 +1,5 @@
 import ky, { type KyInstance } from 'ky'
-import { version } from '../package.json' assert { type: 'json' }
+import metadata from '../package.json' assert { type: 'json' }
 
 export interface IAkaClientConfig {
   server: string
@@ -98,7 +98,7 @@ export class AkaClient {
       headers: {
         'X-AOI-Runner-Id': config.runnerId,
         'X-AOI-Runner-Key': config.runnerKey,
-        'User-Agent': `Aka/${version}`
+        'User-Agent': `Aka/${metadata.version}`
       }
     })
   }
