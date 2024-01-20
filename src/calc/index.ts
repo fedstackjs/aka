@@ -3,9 +3,11 @@ import { AkaClient } from '../client.js'
 import { AkaDb } from '../db.js'
 import { RanklistCalculator } from './base.js'
 import { BasicCalculator } from './basic.js'
+import { PlusCalculator } from './plus.js'
 
 export const calculators = {
-  basic: BasicCalculator
+  basic: BasicCalculator,
+  plus: PlusCalculator
 }
 
 export function getCalculator(
