@@ -36,43 +36,17 @@ export class PlusCalculator extends RanklistCalculator {
       this.topstars = topstars
     }
 
-    if (dict.participantTagWhitelist) {
-      this.participantTagWhitelist = dict.participantTagWhitelist.split(',')
-    }
-    if (dict.participantTagBlacklist) {
-      this.participantTagBlacklist = dict.participantTagBlacklist.split(',')
-    }
-    if (dict.problemTagWhitelist) {
-      this.problemTagWhitelist = dict.problemTagWhitelist.split(',')
-    }
-    if (dict.problemTagBlacklist) {
-      this.problemTagBlacklist = dict.problemTagBlacklist.split(',')
-    }
-    if (dict.problemSlugFilter) {
-      this.problemSlugFilter = new RegExp(dict.problemSlugFilter)
-    }
-    if (dict.problemTitleFilter) {
-      this.problemTitleFilter = new RegExp(dict.problemTitleFilter)
-    }
+    this._loadFilterConfig(dict)
+    this._loadScoreReduceConfig(dict)
+    this._loadTotalReduceConfig(dict)
 
-    if (dict.scoreReduceMethod) {
-      if (reduceMethods.includes(dict.scoreReduceMethod as ReduceMethod)) {
-        this.scoreReduceMethod = dict.scoreReduceMethod as ReduceMethod
-        switch (this.scoreReduceMethod) {
-          case 'override':
-            this._reduceScore = (a, b) => b
-            break
-          case 'max':
-            this._reduceScore = Math.max
-            break
-          case 'min':
-            this._reduceScore = Math.min
-            break
-        }
-      } else {
-        this.warnings += `scoreReduceMethod must be one of ${reduceMethods.join(', ')}\n`
-      }
+    return {
+      shouldSyncParticipants: true,
+      shouldSyncSolutions: !!this.topstars || this.scoreReduceMethod !== 'override'
     }
+  }
+
+  private _loadTotalReduceConfig(dict: Record<string, string>) {
     if (dict.totalReduceMethod) {
       if (totalReduceMethods.includes(dict.totalReduceMethod as TotalReduceMethod)) {
         this.totalReduceMethod = dict.totalReduceMethod as TotalReduceMethod
@@ -91,10 +65,47 @@ export class PlusCalculator extends RanklistCalculator {
         this.warnings += `totalReduceMethod must be one of ${totalReduceMethods.join(', ')}\n`
       }
     }
+  }
 
-    return {
-      shouldSyncParticipants: true,
-      shouldSyncSolutions: !!this.topstars || this.scoreReduceMethod !== 'override'
+  private _loadScoreReduceConfig(dict: Record<string, string>) {
+    if (dict.scoreReduceMethod) {
+      if (reduceMethods.includes(dict.scoreReduceMethod as ReduceMethod)) {
+        this.scoreReduceMethod = dict.scoreReduceMethod as ReduceMethod
+        switch (this.scoreReduceMethod) {
+          case 'override':
+            this._reduceScore = (a, b) => b
+            break
+          case 'max':
+            this._reduceScore = Math.max
+            break
+          case 'min':
+            this._reduceScore = Math.min
+            break
+        }
+      } else {
+        this.warnings += `scoreReduceMethod must be one of ${reduceMethods.join(', ')}\n`
+      }
+    }
+  }
+
+  private _loadFilterConfig(dict: Record<string, string>) {
+    if (dict.participantTagWhitelist) {
+      this.participantTagWhitelist = dict.participantTagWhitelist.split(',')
+    }
+    if (dict.participantTagBlacklist) {
+      this.participantTagBlacklist = dict.participantTagBlacklist.split(',')
+    }
+    if (dict.problemTagWhitelist) {
+      this.problemTagWhitelist = dict.problemTagWhitelist.split(',')
+    }
+    if (dict.problemTagBlacklist) {
+      this.problemTagBlacklist = dict.problemTagBlacklist.split(',')
+    }
+    if (dict.problemSlugFilter) {
+      this.problemSlugFilter = new RegExp(dict.problemSlugFilter)
+    }
+    if (dict.problemTitleFilter) {
+      this.problemTitleFilter = new RegExp(dict.problemTitleFilter)
     }
   }
 
