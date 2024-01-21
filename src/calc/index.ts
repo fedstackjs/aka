@@ -4,10 +4,12 @@ import { AkaDb } from '../db.js'
 import { RanklistCalculator } from './base.js'
 import { BasicCalculator } from './basic.js'
 import { PlusCalculator } from './plus.js'
+import { AcmCalculator } from './acm.js'
 
 export const calculators = {
   basic: BasicCalculator,
-  plus: PlusCalculator
+  plus: PlusCalculator,
+  acm: AcmCalculator
 }
 
 export function getCalculator(
