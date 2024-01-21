@@ -1,6 +1,6 @@
 {
   "name": "@aoi-js/aka",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "packageManager": "yarn@4.0.2",
   "publishConfig": {
     "access": "public"
@@ -32,7 +32,8 @@
     "prettier": "^3.2.4",
     "rimraf": "^5.0.5",
     "typescript": "^5.3.3",
-    "undici-types": "^6.4.0"
+    "undici-types": "^6.4.0",
+    "vitepress": "^1.0.0-rc.39"
   },
   "dependencies": {
     "dotenv": "^16.3.2",
@@ -44,6 +45,9 @@
     "build": "tsc",
     "clean": "rimraf lib tsconfig.tsbuildinfo",
     "prepack": "run build",
-    "dev": "aka | pino-pretty"
+    "dev": "aka | pino-pretty",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs",
+    "docs:preview": "vitepress preview docs"
   }
 }

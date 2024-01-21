@@ -12,20 +12,34 @@ export class AcmCalculator extends RanklistCalculator {
   topstars = 0
   warnings = ''
   startTime = 0
+  penaltyPerSolution = 20 * 60 * 1000
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
-    const topstars = +dict.topstars
-    if (!Number.isInteger(topstars) || topstars < 0 || topstars > 20) {
-      this.warnings += 'topstars must be an integer between 0 and 20\n'
-    } else {
-      this.topstars = topstars
+    if (dict.topstars) {
+      const topstars = +dict.topstars
+      if (!Number.isInteger(topstars) || topstars < 0 || topstars > 20) {
+        this.warnings += 'topstars must be an integer between 0 and 20\n'
+      } else {
+        this.topstars = topstars
+      }
     }
 
-    const startTime = Date.parse(dict.startTime)
-    if (Number.isNaN(startTime)) {
-      this.warnings += 'startTime is not a valid timestamp\n'
-    } else {
-      this.startTime = startTime
+    if (dict.startTime) {
+      const startTime = Date.parse(dict.startTime)
+      if (Number.isNaN(startTime)) {
+        this.warnings += 'startTime is not a valid timestamp\n'
+      } else {
+        this.startTime = startTime
+      }
+    }
+
+    if (dict.penaltyPerSolution) {
+      const penaltyPerSolution = +dict.penaltyPerSolution
+      if (!Number.isInteger(penaltyPerSolution) || penaltyPerSolution < 0) {
+        this.warnings += 'penaltyPerSolution must be a positive integer\n'
+      } else {
+        this.penaltyPerSolution = penaltyPerSolution
+      }
     }
 
     return {
@@ -119,6 +133,7 @@ export class AcmCalculator extends RanklistCalculator {
         record.solutionCounts[i] = solutionCounts[problemId] ?? 0
         if (record.scores[i]) {
           record.penalty += Math.max(0, timestamps[problemId] - this.startTime)
+          record.penalty += this.penaltyPerSolution * (solutionCounts[problemId] - 1)
         }
       }
     }
