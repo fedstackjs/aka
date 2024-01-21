@@ -1,6 +1,6 @@
 {
   "name": "@aoi-js/aka",
-  "version": "0.0.2",
+  "version": "0.0.4",
   "packageManager": "yarn@4.0.2",
   "publishConfig": {
     "access": "public"
@@ -28,6 +28,7 @@
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "eslint": "^8.56.0",
+    "pino-pretty": "^10.3.1",
     "prettier": "^3.2.4",
     "typescript": "^5.3.3",
     "undici-types": "^6.4.0"
@@ -40,6 +41,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "prepack": "run build"
+    "prepack": "run build",
+    "dev": "aka | pino-pretty"
   }
 }

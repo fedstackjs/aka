@@ -26,17 +26,19 @@ export class BasicCalculator extends RanklistCalculator {
     }
   }
 
-  override async calculate(contestId: string, taskId: string): Promise<IRanklist> {
+  override async calculate(contestId: string, taskId: string, key: string): Promise<IRanklist> {
     const problems = await this.client.problems(contestId, taskId)
-    const problemIdList = problems
-      .sort((a, b) => a.settings.slug.localeCompare(b.settings.slug))
-      .map((p) => p._id)
+    problems.sort((a, b) => a.settings.slug.localeCompare(b.settings.slug))
+    const problemIdList = problems.map((p) => p._id)
+    const problemScoreList = problems.map((p) => p.settings.score)
     const participants = await this.db.participants.find({ contestId }).toArray()
     const participantRecords = participants
       .map(({ userId, tags, results }) => ({
         userId,
         tags,
-        scores: problemIdList.map((pid) => results[pid]?.lastSolution.score ?? 0)
+        scores: problemIdList
+          .map((pid) => results[pid]?.lastSolution.score ?? 0)
+          .map((score, i) => (score * problemScoreList[i]) / 100)
       }))
       .map((record) => ({
         ...record,
@@ -72,7 +74,9 @@ export class BasicCalculator extends RanklistCalculator {
             for (const { problemId, score, submittedAt } of solutions) {
               currentScores[problemId] = score
               mutations.push({
-                score: Object.values(currentScores).reduce((a, b) => a + b, 0),
+                score: problemIdList
+                  .map((pid, i) => ((currentScores[pid] ?? 0) * problemScoreList[i]) / 100)
+                  .reduce((a, b) => a + b, 0),
                 ts: submittedAt
               })
             }
@@ -80,6 +84,10 @@ export class BasicCalculator extends RanklistCalculator {
           })
         )
       }
+    }
+
+    if (this.warnings) {
+      this.logger.warn({ contestId, taskId, key }, this.warnings)
     }
 
     return {

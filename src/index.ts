@@ -135,7 +135,12 @@ export class Aka {
           this.logger.warn({ contestId, taskId, key: ranklist.key }, `No calculator or url`)
           return
         }
-        const result = await calculator.calculate(contestId, taskId)
+        const now = performance.now()
+        const result = await calculator.calculate(contestId, taskId, ranklist.key)
+        this.logger.info(
+          { contestId, taskId, key: ranklist.key },
+          `Ranklist ${ranklist.key} calculated in ${performance.now() - now}ms`
+        )
         await this.client.uploadRanklist(url, result)
       })
     )

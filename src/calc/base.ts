@@ -15,5 +15,5 @@ export abstract class RanklistCalculator {
   ) {}
 
   abstract loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions>
-  abstract calculate(contestId: string, taskId: string): Promise<IRanklist>
+  abstract calculate(contestId: string, taskId: string, key: string): Promise<IRanklist>
 }
