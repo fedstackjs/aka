@@ -67,7 +67,7 @@ export class BasicCalculator extends RanklistCalculator {
           topstarUserIdList.map(async (userId) => {
             const solutions = await this.db.solutions
               .find({ contestId, userId })
-              .sort({ completedAt: 1 })
+              .sort({ submittedAt: 1 })
               .toArray()
             const currentScores: Record<string, number> = Object.create(null)
             const mutations: IRanklistTopstarItemMutation[] = []
