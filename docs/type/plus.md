@@ -9,7 +9,7 @@ outline: deep
 ## 配置
 
 ```ini
-type=basic
+type=plus
 # Topstar数，设置为0则不显示
 topstars=10
 # 筛选包含特定Tag的参赛者。以逗号分隔。
@@ -42,4 +42,8 @@ showProblemScore=0
 showLastSubmission=0
 # 对于同分选手，令其排名也相同
 sameRankForSameScore=0
+# 只统计在该时间前提交的解答
+submittedBefore=08/17/1926, 8:00:00 PM
+# 只统计在该时间及其之后提交的解答
+submittedAfter=08/17/1926, 8:00:00 AM
 ```

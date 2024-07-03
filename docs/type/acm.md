@@ -13,7 +13,7 @@ ACM风格的排行榜。但与传统的ACM排行榜具有如下差别：
 ## 配置
 
 ```ini
-type=basic
+type=acm
 # Topstar数，设置为0则不显示
 topstars=10
 # 罚时计算的参考开始时间，必须设置

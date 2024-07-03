@@ -32,6 +32,8 @@ export class PlusCalculator extends RanklistCalculator {
   showProblemScore = false
   showLastSubmission = false
   sameRankForSameScore = false
+  submittedBefore?: number
+  submittedAfter?: number
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
     const topstars = +dict.topstars
@@ -128,6 +130,22 @@ export class PlusCalculator extends RanklistCalculator {
     if (dict.problemTitleFilter) {
       this.problemTitleFilter = new RegExp(dict.problemTitleFilter)
     }
+    if (dict.submittedBefore) {
+      const submittedBefore = Date.parse(dict.submittedBefore)
+      if (Number.isNaN(submittedBefore)) {
+        this.warnings += 'submittedBefore is not a valid timestamp\n'
+      } else {
+        this.submittedBefore = submittedBefore
+      }
+    }
+    if (dict.submittedAfter) {
+      const submittedAfter = Date.parse(dict.submittedAfter)
+      if (Number.isNaN(submittedAfter)) {
+        this.warnings += 'submittedAfter is not a valid timestamp\n'
+      } else {
+        this.submittedAfter = submittedAfter
+      }
+    }
   }
 
   private async _getProblems(contestId: string, taskId: string) {
@@ -199,15 +217,8 @@ export class PlusCalculator extends RanklistCalculator {
     }))
     logger.info(`Loaded ${problems.length} problems and ${participants.length} participants`)
 
-    if (this.topstars || !this.sameRankForSameScore || this.showLastSubmission) {
-      // Calculate lastSubmission
-      await this._calculateLastSubmission(logger, contestId, problemIdList, participantsWithScores)
-    }
-
-    if (this.scoreReduceMethod !== 'override') {
-      // We need to manually calculate the scores
-      await this._calculateScores(logger, contestId, problemIdList, participantsWithScores)
-    }
+    await this._calculateLastSubmission(logger, contestId, problemIdList, participantsWithScores)
+    await this._calculateScores(logger, contestId, problemIdList, participantsWithScores)
 
     if (!this.showOriginalScore) {
       for (const participant of participantsWithScores) {
@@ -337,7 +348,18 @@ export class PlusCalculator extends RanklistCalculator {
       list: await Promise.all(
         topstarUserIdList.map(async (userId) => {
           const solutions = await this.db.solutions
-            .find({ contestId, userId, problemId: { $in: problemIdList } })
+            .find(
+              {
+                contestId,
+                userId,
+                problemId: { $in: problemIdList },
+                submittedAt: {
+                  $gte: this.submittedAfter,
+                  $lt: this.submittedBefore
+                }
+              },
+              { ignoreUndefined: true }
+            )
             .sort({ submittedAt: 1 })
             .toArray()
           const currentScores: Record<string, number> = Object.create(null)
@@ -377,7 +399,17 @@ export class PlusCalculator extends RanklistCalculator {
     logger.info('Calculating scores')
     const start = performance.now()
     const scores = new Map<string, Record<string, number>>()
-    const cursor = this.db.solutions.find({ contestId, problemId: { $in: problemIdList } })
+    const cursor = this.db.solutions.find(
+      {
+        contestId,
+        problemId: { $in: problemIdList },
+        submittedAt: {
+          $gte: this.submittedAfter,
+          $lt: this.submittedBefore
+        }
+      },
+      { ignoreUndefined: true }
+    )
     for await (const solution of cursor) {
       const { userId, problemId, score } = solution
       if (!scores.has(userId)) {
@@ -411,7 +443,17 @@ export class PlusCalculator extends RanklistCalculator {
     logger.info('Calculating lastSubmission')
     const start = performance.now()
     const lastSubmissions = new Map<string, number>()
-    const cursor = this.db.solutions.find({ contestId, problemId: { $in: problemIdList } })
+    const cursor = this.db.solutions.find(
+      {
+        contestId,
+        problemId: { $in: problemIdList },
+        submittedAt: {
+          $gte: this.submittedAfter,
+          $lt: this.submittedBefore
+        }
+      },
+      { ignoreUndefined: true }
+    )
     for await (const solution of cursor) {
       const { userId, submittedAt } = solution
       if (lastSubmissions.has(userId)) {
