@@ -23,6 +23,8 @@ export class PlusCalculator extends RanklistCalculator {
   participantTagBlacklist?: string[]
   problemTagWhitelist?: string[]
   problemTagBlacklist?: string[]
+  stageWhitelist?: string[]
+  stageBlacklist?: string[]
   problemSlugFilter?: RegExp
   problemTitleFilter?: RegExp
   scoreReduceMethod: ReduceMethod = 'override'
@@ -125,6 +127,12 @@ export class PlusCalculator extends RanklistCalculator {
     if (dict.problemTagBlacklist) {
       this.problemTagBlacklist = dict.problemTagBlacklist.split(',')
     }
+    if (dict.stageWhitelist) {
+      this.stageWhitelist = dict.stageWhitelist.split(',')
+    }
+    if (dict.stageBlacklist) {
+      this.stageBlacklist = dict.stageBlacklist.split(',')
+    }
     if (dict.problemSlugFilter) {
       this.problemSlugFilter = new RegExp(dict.problemSlugFilter)
     }
@@ -185,6 +193,19 @@ export class PlusCalculator extends RanklistCalculator {
       )
     }
     return participants
+  }
+
+  private _shouldSkipStage(stage: IContestStage) {
+    if (this.stageWhitelist || this.stageBlacklist) {
+      if (this.stageWhitelist && !this.stageWhitelist.includes(stage.name)) {
+        return true
+      }
+      if (this.stageBlacklist && this.stageBlacklist.includes(stage.name)) {
+        return true
+      }
+      return false
+    }
+    return !!stage.settings.ranklistSkipCalculation
   }
 
   private _renderParticipantItemColumn(
@@ -396,7 +417,7 @@ export class PlusCalculator extends RanklistCalculator {
           // Filter out solutions that should be skipped
           solutions = solutions.filter((solution) => {
             const stage = stages.findLast((s) => s.start <= solution.submittedAt)
-            return !stage?.settings.ranklistSkipCalculation
+            return stage && !this._shouldSkipStage(stage)
           })
 
           // Calculate score mutations
@@ -457,9 +478,8 @@ export class PlusCalculator extends RanklistCalculator {
     for await (const solution of cursor) {
       const { _id, userId, problemId, score, submittedAt } = solution
       const stage = stages.findLast((s) => s.start <= submittedAt)
-      // If ranklistSkipCalculation is set for the corresponding stage,
-      // skip lastSubmission calculation
-      if (stage?.settings.ranklistSkipCalculation) continue
+      // skip lastSubmission calculation if stage should be skipped
+      if (stage && this._shouldSkipStage(stage)) continue
 
       // Update participant's score using _reduceScore
       const userScores = scores.get(userId) ?? Object.create(null)

@@ -46,4 +46,11 @@ sameRankForSameScore=0
 submittedBefore=08/17/1926, 8:00:00 PM
 # 只统计在该时间及其之后提交的解答
 submittedAfter=08/17/1926, 8:00:00 AM
+
+# v0.0.13新增
+# 阶段配置。若设置，将覆盖比赛阶段的配置
+# 阶段白名单。以逗号分隔
+stageWhitelist=running
+# 阶段黑名单。以逗号分隔
+stageBlacklist=end
 ```
