@@ -1,5 +1,6 @@
 import ky, { type KyInstance } from 'ky'
 import metadata from '../package.json' assert { type: 'json' }
+import type { IContestStage } from '@aoi-js/server'
 
 export interface IAkaClientConfig {
   server: string
@@ -65,6 +66,7 @@ export interface IRanklistParticipantColumn {
 
 export interface IRanklistParticipantItemColumn {
   content: string
+  solutionId?: string
 }
 
 export interface IRanklistParticipantItem {
@@ -124,6 +126,16 @@ export class AkaClient {
     return this.http
       .post(`api/runner/ranklist/task/${contestId}/${taskId}/complete`, { json: payload })
       .json<void>()
+  }
+
+  async contest(contestId: string, taskId: string) {
+    return this.http.get(`api/runner/ranklist/task/${contestId}/${taskId}/contest`).json<{
+      slug: string
+      title: string
+      description: string
+      tags: string[]
+      stages: IContestStage[]
+    }>()
   }
 
   async problems(contestId: string, taskId: string) {

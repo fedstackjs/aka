@@ -8,6 +8,7 @@ import {
   IRanklistTopstarItemMutation
 } from '../client.js'
 import { IRanklistSyncOptions, RanklistCalculator } from './base.js'
+import { IContestStage } from '@aoi-js/server'
 
 const reduceMethods = ['override', 'max', 'min'] as const
 type ReduceMethod = (typeof reduceMethods)[number]
@@ -32,8 +33,8 @@ export class PlusCalculator extends RanklistCalculator {
   showProblemScore = false
   showLastSubmission = false
   sameRankForSameScore = false
-  submittedBefore?: number
-  submittedAfter?: number
+  submittedBefore: number = Date.parse('2124-12-31T23:59:59Z')
+  submittedAfter: number = 0
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
     const topstars = +dict.topstars
@@ -148,6 +149,10 @@ export class PlusCalculator extends RanklistCalculator {
     }
   }
 
+  private async _getContest(contestId: string, taskId: string) {
+    return this.client.contest(contestId, taskId)
+  }
+
   private async _getProblems(contestId: string, taskId: string) {
     let problems = await this.client.problems(contestId, taskId)
     const { problemTagWhitelist, problemTagBlacklist, problemSlugFilter, problemTitleFilter } = this
@@ -184,10 +189,20 @@ export class PlusCalculator extends RanklistCalculator {
 
   private _renderParticipantItemColumn(
     score: number,
-    problemScore: number
+    problemScore: number,
+    solutionId: string
   ): IRanklistParticipantItemColumn {
-    if (this.showProblemScore) return { content: `\`${score}/${problemScore}\`` }
-    return { content: `${score}` }
+    const cell: IRanklistParticipantItemColumn = Object.create(null)
+    if (this.showProblemScore) {
+      // return { content: `\`${score}/${problemScore}\`` }
+      cell.content = `${score}/${problemScore}`
+    } else {
+      cell.content = `${score}`
+    }
+    if (solutionId) {
+      cell.solutionId = solutionId
+    }
+    return cell
   }
 
   private _formatDate(ts: number) {
@@ -204,21 +219,29 @@ export class PlusCalculator extends RanklistCalculator {
     const logger = this.logger.child({ contestId, taskId, key })
     logger.info('Start to calculate ranklist')
 
+    const contest = await this._getContest(contestId, taskId)
+    logger.info(`Loaded contest ${contest.slug} (${contest.title})`)
     const problems = await this._getProblems(contestId, taskId)
     problems.sort((a, b) => a.settings.slug.localeCompare(b.settings.slug))
     const problemIdList = problems.map((p) => p._id)
     const problemScoreList = problems.map((p) => p.settings.score)
     const participants = await this._getParticipants(contestId)
-    const participantsWithScores = participants.map(({ userId, tags, results }) => ({
+    const participantsWithScores = participants.map(({ userId, tags }) => ({
       userId,
       tags,
-      scores: problemIdList.map((pid) => results[pid]?.lastSolution.score ?? 0),
+      scores: problemIdList.map(() => 0),
+      lastSubmissionIds: problemIdList.map(() => ''),
       lastSubmission: 0
     }))
     logger.info(`Loaded ${problems.length} problems and ${participants.length} participants`)
 
-    await this._calculateLastSubmission(logger, contestId, problemIdList, participantsWithScores)
-    await this._calculateScores(logger, contestId, problemIdList, participantsWithScores)
+    await this._calculateScores(
+      logger,
+      contestId,
+      problemIdList,
+      participantsWithScores,
+      contest.stages
+    )
 
     if (!this.showOriginalScore) {
       for (const participant of participantsWithScores) {
@@ -262,7 +285,8 @@ export class PlusCalculator extends RanklistCalculator {
         participantRecords,
         contestId,
         problemIdList,
-        problemScoreList
+        problemScoreList,
+        contest.stages
       )
     }
 
@@ -281,7 +305,7 @@ export class PlusCalculator extends RanklistCalculator {
       topstar,
       participant: {
         list: participantRecords.map(
-          ({ userId, rank, tags, scores, totalScore, lastSubmission }) =>
+          ({ userId, rank, tags, scores, lastSubmissionIds, totalScore, lastSubmission }) =>
             ({
               userId,
               rank,
@@ -290,10 +314,11 @@ export class PlusCalculator extends RanklistCalculator {
                 ...scores.map((score, i) =>
                   this._renderParticipantItemColumn(
                     score,
-                    this.showOriginalScore ? 100 : problemScoreList[i]
+                    this.showOriginalScore ? 100 : problemScoreList[i],
+                    lastSubmissionIds[i]
                   )
                 ),
-                this._renderParticipantItemColumn(totalScore, problemTotalScore),
+                this._renderParticipantItemColumn(totalScore, problemTotalScore, ''),
                 ...(this.showLastSubmission ? [{ content: this._renderDate(lastSubmission) }] : [])
               ]
             }) satisfies IRanklistParticipantItem
@@ -335,19 +360,24 @@ export class PlusCalculator extends RanklistCalculator {
     }[],
     contestId: string,
     problemIdList: string[],
-    problemScoreList: number[]
+    problemScoreList: number[],
+    stages: IContestStage[]
   ): Promise<IRanklistTopstar> {
-    const now = Date.now()
     logger.info('Calculating topstars')
+    const start = performance.now()
 
+    // Filter out topstars' userId list
     const topstarUserIdList = participantRecords
       .slice(0, this.topstars)
       .filter((record) => record.totalScore > 0)
       .map((p) => p.userId)
+
+    // Generate topstar info
     const topstar: IRanklistTopstar = {
       list: await Promise.all(
         topstarUserIdList.map(async (userId) => {
-          const solutions = await this.db.solutions
+          // For each topstar, find all effective solutions
+          let solutions = await this.db.solutions
             .find(
               {
                 contestId,
@@ -362,6 +392,14 @@ export class PlusCalculator extends RanklistCalculator {
             )
             .sort({ submittedAt: 1 })
             .toArray()
+
+          // Filter out solutions that should be skipped
+          solutions = solutions.filter((solution) => {
+            const stage = stages.findLast((s) => s.start <= solution.submittedAt)
+            return !stage?.settings.ranklistSkipCalculation
+          })
+
+          // Calculate score mutations
           const currentScores: Record<string, number> = Object.create(null)
           const mutations: IRanklistTopstarItemMutation[] = []
           for (const { problemId, score, submittedAt } of solutions) {
@@ -381,7 +419,7 @@ export class PlusCalculator extends RanklistCalculator {
         })
       )
     }
-    logger.info(`Calculated topstars in ${Date.now() - now}ms`)
+    logger.info(`Calculated topstars in ${performance.now() - start}ms`)
     return topstar
   }
 
@@ -393,12 +431,16 @@ export class PlusCalculator extends RanklistCalculator {
       userId: string
       tags: string[] | undefined
       scores: number[]
+      lastSubmissionIds: string[]
       lastSubmission: number
-    }[]
+    }[],
+    stages: IContestStage[]
   ) {
     logger.info('Calculating scores')
     const start = performance.now()
     const scores = new Map<string, Record<string, number>>()
+    const lastSubmissions = new Map<string, number>()
+    const lastSubmissionIds = new Map<string, Record<string, string>>()
     const cursor = this.db.solutions.find(
       {
         contestId,
@@ -410,61 +452,38 @@ export class PlusCalculator extends RanklistCalculator {
       },
       { ignoreUndefined: true }
     )
+
+    // Iterate through all solutions and calculate scores
     for await (const solution of cursor) {
-      const { userId, problemId, score } = solution
-      if (!scores.has(userId)) {
-        scores.set(userId, Object.create(null))
-      }
-      const userScores = scores.get(userId)!
+      const { _id, userId, problemId, score, submittedAt } = solution
+      const stage = stages.findLast((s) => s.start <= submittedAt)
+      // If ranklistSkipCalculation is set for the corresponding stage,
+      // skip lastSubmission calculation
+      if (stage?.settings.ranklistSkipCalculation) continue
+
+      // Update participant's score using _reduceScore
+      const userScores = scores.get(userId) ?? Object.create(null)
       if (Object.hasOwn(userScores, problemId)) {
         userScores[problemId] = this._reduceScore(userScores[problemId], score)
       } else {
         userScores[problemId] = score
       }
-    }
-    for (const participant of participantsWithScores) {
-      const userScores = scores.get(participant.userId) ?? Object.create(null)
-      participant.scores = problemIdList.map((pid) => userScores[pid] ?? 0)
-    }
-    logger.info(`Calculated scores in ${performance.now() - start}ms`)
-  }
+      scores.set(userId, userScores)
 
-  private async _calculateLastSubmission(
-    logger: Logger,
-    contestId: string,
-    problemIdList: string[],
-    participantsWithScores: {
-      userId: string
-      tags: string[] | undefined
-      scores: number[]
-      lastSubmission: number
-    }[]
-  ) {
-    logger.info('Calculating lastSubmission')
-    const start = performance.now()
-    const lastSubmissions = new Map<string, number>()
-    const cursor = this.db.solutions.find(
-      {
-        contestId,
-        problemId: { $in: problemIdList },
-        submittedAt: {
-          $gte: this.submittedAfter,
-          $lt: this.submittedBefore
-        }
-      },
-      { ignoreUndefined: true }
-    )
-    for await (const solution of cursor) {
-      const { userId, submittedAt } = solution
-      if (lastSubmissions.has(userId)) {
-        lastSubmissions.set(userId, Math.max(lastSubmissions.get(userId)!, submittedAt))
-      } else {
-        lastSubmissions.set(userId, submittedAt)
-      }
+      // Update lastSubmission timestamp and id
+      lastSubmissions.set(userId, Math.max(lastSubmissions.get(userId) ?? 0, submittedAt))
+      const userLastSubmissionIds = lastSubmissionIds.get(userId) ?? Object.create(null)
+      userLastSubmissionIds[problemId] = _id
+      lastSubmissionIds.set(userId, userLastSubmissionIds)
     }
+
     for (const participant of participantsWithScores) {
+      const userScores = scores.get(participant.userId)
+      participant.scores = problemIdList.map((pid) => userScores?.[pid] ?? 0)
+      const userLastSubmissionIds = lastSubmissionIds.get(participant.userId)
+      participant.lastSubmissionIds = problemIdList.map((pid) => userLastSubmissionIds?.[pid] ?? '')
       participant.lastSubmission = lastSubmissions.get(participant.userId) ?? 0
     }
-    logger.info(`Calculated lastSubmission in ${performance.now() - start}ms`)
+    logger.info(`Calculated scores in ${performance.now() - start}ms`)
   }
 }
