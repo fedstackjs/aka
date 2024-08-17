@@ -37,6 +37,7 @@ export class PlusCalculator extends RanklistCalculator {
   sameRankForSameScore = false
   submittedBefore: number = Date.parse('2124-12-31T23:59:59Z')
   submittedAfter: number = 0
+  skipAfterAccepted = false
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
     const topstars = +dict.topstars
@@ -155,6 +156,9 @@ export class PlusCalculator extends RanklistCalculator {
         this.submittedAfter = submittedAfter
       }
     }
+    if (dict.skipAfterAccepted) {
+      this.skipAfterAccepted = !!+dict.skipAfterAccepted
+    }
   }
 
   private async _getContest(contestId: string, taskId: string) {
@@ -215,7 +219,6 @@ export class PlusCalculator extends RanklistCalculator {
   ): IRanklistParticipantItemColumn {
     const cell: IRanklistParticipantItemColumn = Object.create(null)
     if (this.showProblemScore) {
-      // return { content: `\`${score}/${problemScore}\`` }
       cell.content = `${score}/${problemScore}`
     } else {
       cell.content = `${score}`
@@ -425,6 +428,7 @@ export class PlusCalculator extends RanklistCalculator {
           const mutations: IRanklistTopstarItemMutation[] = []
           for (const { problemId, score, submittedAt } of solutions) {
             if (Object.hasOwn(currentScores, problemId)) {
+              if (this.skipAfterAccepted && currentScores[problemId] === 100) continue
               currentScores[problemId] = this._reduceScore(currentScores[problemId], score)
             } else {
               currentScores[problemId] = score
@@ -484,6 +488,7 @@ export class PlusCalculator extends RanklistCalculator {
       // Update participant's score using _reduceScore
       const userScores = scores.get(userId) ?? Object.create(null)
       if (Object.hasOwn(userScores, problemId)) {
+        if (this.skipAfterAccepted && userScores[problemId] === 100) continue
         userScores[problemId] = this._reduceScore(userScores[problemId], score)
       } else {
         userScores[problemId] = score

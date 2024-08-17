@@ -53,4 +53,8 @@ submittedAfter=08/17/1926, 8:00:00 AM
 stageWhitelist=running
 # 阶段黑名单。以逗号分隔
 stageBlacklist=end
+
+# v0.0.14新增
+# 在通过某题后，忽略后续提交
+skipAfterAccepted=0
 ```
