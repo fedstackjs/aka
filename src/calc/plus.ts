@@ -38,6 +38,7 @@ export class PlusCalculator extends RanklistCalculator {
   submittedBefore: number = Date.parse('2124-12-31T23:59:59Z')
   submittedAfter: number = 0
   skipAfterAccepted = false
+  includeBannded = false
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
     const topstars = +dict.topstars
@@ -159,6 +160,9 @@ export class PlusCalculator extends RanklistCalculator {
     if (dict.skipAfterAccepted) {
       this.skipAfterAccepted = !!+dict.skipAfterAccepted
     }
+    if (dict.includeBannded) {
+      this.includeBannded = !!+dict.includeBannded
+    }
   }
 
   private async _getContest(contestId: string, taskId: string) {
@@ -195,6 +199,9 @@ export class PlusCalculator extends RanklistCalculator {
       participants = participants.filter(
         (p) => !p.tags || !p.tags.some((t) => participantTagBlacklist!.includes(t))
       )
+    }
+    if (!this.includeBannded) {
+      participants = participants.filter((p) => !p.banned)
     }
     return participants
   }

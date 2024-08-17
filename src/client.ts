@@ -25,6 +25,7 @@ export interface IParticipant {
       }
     }
   >
+  banned?: boolean
   updatedAt: number
 }
 

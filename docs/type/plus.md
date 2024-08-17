@@ -57,4 +57,8 @@ stageBlacklist=end
 # v0.0.14新增
 # 在通过某题后，忽略后续提交
 skipAfterAccepted=0
+
+# v0.0.15新增
+# 是否包含被Ban的选手
+includeBannded=0
 ```
