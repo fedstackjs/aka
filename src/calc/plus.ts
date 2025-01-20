@@ -39,6 +39,7 @@ export class PlusCalculator extends RanklistCalculator {
   submittedAfter: number = 0
   skipAfterAccepted = false
   includeBannded = false
+  displayPrecision = 3
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
     const topstars = +dict.topstars
@@ -71,6 +72,14 @@ export class PlusCalculator extends RanklistCalculator {
     }
     if (dict.sameRankForSameScore) {
       this.sameRankForSameScore = !!+dict.sameRankForSameScore
+    }
+    if (dict.displayPrecision) {
+      const displayPrecision = parseInt(dict.displayPrecision)
+      if (Number.isNaN(displayPrecision) || displayPrecision < 0 || displayPrecision > 6) {
+        this.warnings += 'displayPrecision must be an integer between 0 and 6\n'
+      } else {
+        this.displayPrecision = displayPrecision
+      }
     }
   }
 
@@ -225,10 +234,12 @@ export class PlusCalculator extends RanklistCalculator {
     solutionId: string
   ): IRanklistParticipantItemColumn {
     const cell: IRanklistParticipantItemColumn = Object.create(null)
+    const formattedScore = score.toFixed(this.displayPrecision).replace(/\.?0+$/, '')
+    const formattedProblemScore = problemScore.toFixed(this.displayPrecision).replace(/\.?0+$/, '')
     if (this.showProblemScore) {
-      cell.content = `${score}/${problemScore}`
+      cell.content = `${formattedScore}/${formattedProblemScore}`
     } else {
-      cell.content = `${score}`
+      cell.content = `${formattedScore}`
     }
     if (solutionId) {
       cell.solutionId = solutionId
