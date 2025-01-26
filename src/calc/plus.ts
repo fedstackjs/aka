@@ -17,6 +17,7 @@ const totalReduceMethods = ['sum', 'max', 'min'] as const
 type TotalReduceMethod = (typeof totalReduceMethods)[number]
 
 export class PlusCalculator extends RanklistCalculator {
+  rawConfig: Record<string, string> = Object.create(null)
   topstars = 0
   warnings = ''
   participantTagWhitelist?: string[]
@@ -42,6 +43,7 @@ export class PlusCalculator extends RanklistCalculator {
   displayPrecision = 3
 
   override async loadConfig(dict: Record<string, string>): Promise<IRanklistSyncOptions> {
+    this.rawConfig = dict
     const topstars = +dict.topstars
     if (!Number.isInteger(topstars) || topstars < 0 || topstars > 20) {
       this.warnings += 'topstars must be an integer between 0 and 20\n'
@@ -284,6 +286,7 @@ export class PlusCalculator extends RanklistCalculator {
       participantsWithScores,
       contest.stages
     )
+    await this._applyScoreOverride(logger, contestId, problemIdList, participantsWithScores)
 
     if (!this.showOriginalScore) {
       for (const participant of participantsWithScores) {
@@ -528,5 +531,70 @@ export class PlusCalculator extends RanklistCalculator {
       participant.lastSubmission = lastSubmissions.get(participant.userId) ?? 0
     }
     logger.info(`Calculated scores in ${performance.now() - start}ms`)
+  }
+
+  private async _applyScoreOverride(
+    logger: Logger,
+    contestId: string,
+    problemIdList: string[],
+    participantsWithScores: {
+      userId: string
+      tags: string[] | undefined
+      scores: number[]
+      lastSubmissionIds: string[]
+      lastSubmission: number
+    }[]
+  ) {
+    const overridePrefix = 'override.'
+    const overrideKeys = Object.keys(this.rawConfig)
+      .filter((k) => k.startsWith(overridePrefix))
+      .map((k) => k.slice(overridePrefix.length))
+    for (const participant of participantsWithScores) {
+      const prefix = `${participant.userId}.`
+      const matched = overrideKeys
+        .filter((k) => k.startsWith(prefix))
+        .map((k) => k.slice(prefix.length))
+      if (!matched.length) continue
+      const entries = matched.map((k) => [k, this.rawConfig[`${overridePrefix}${prefix}${k}`]])
+      const participantConfig = Object.fromEntries(entries)
+      logger.info(`Applying score override for ${participant.userId}`)
+      for (let idx = 0; idx < problemIdList.length; idx++) {
+        const pid = problemIdList[idx]
+        const prefix = `problem.${pid}.`
+        const matched = Object.keys(participantConfig)
+          .filter((k) => k.startsWith(prefix))
+          .map((k) => k.slice(prefix.length))
+        if (!matched.length) continue
+        const entries = matched.map((k) => [k, participantConfig[`${prefix}${k}`]])
+        const problemConfig = Object.fromEntries(entries)
+        logger.info(`Applying score override for ${participant.userId} on problem ${pid}`)
+        if (problemConfig.solutionId) {
+          // Use solutionId as effective solution
+          const solution = await this.db.solutions.findOne({
+            _id: problemConfig.solutionId,
+            contestId,
+            userId: participant.userId,
+            problemId: pid
+          })
+          if (solution) {
+            participant.scores[idx] = solution.score
+            participant.lastSubmissionIds[idx] = solution._id
+            participant.lastSubmission = solution.submittedAt
+          } else {
+            logger.warn(
+              `Solution ${problemConfig.solutionId} not found for ${participant.userId} on problem ${pid}`
+            )
+          }
+        }
+        if (problemConfig.score) {
+          const score = parseFloat(problemConfig.score)
+          if (!Number.isNaN(score)) {
+            participant.scores[idx] = score
+          } else {
+            logger.warn(`Invalid score override value for ${participant.userId} on problem ${pid}`)
+          }
+        }
+      }
+    }
   }
 }
